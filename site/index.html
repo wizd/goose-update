@@ -67,11 +67,27 @@
 
       .version span { color: var(--muted); }
 
+      .group { margin-top: 56px; }
+
+      .group h2 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .group .summary {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
       .grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 16px;
-        margin-top: 48px;
+        margin-top: 18px;
       }
 
       .card {
@@ -85,11 +101,20 @@
         min-height: 248px;
       }
 
-      .card h2 {
+      .card h3 {
         margin: 0;
         font-size: 22px;
         font-weight: 600;
         letter-spacing: -0.02em;
+      }
+
+      .file {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.4;
+        word-break: break-all;
       }
 
       .detail {
@@ -191,9 +216,9 @@
         </g>
       </svg>
       <h1>下载 Goose</h1>
-      <p class="lede">桌面版安装包。每次打开都会读取当前发布的版本。</p>
+      <p class="lede">桌面版和命令行。每次打开都会读取当前发布的版本。</p>
       <p class="version" id="version"><span>正在读取版本…</span></p>
-      <section class="grid" id="downloads" aria-live="polite"></section>
+      <div id="catalog" aria-live="polite"></div>
       <footer>安装包由构建发布到这个站点。应用内更新使用同一份版本清单。</footer>
     </main>
     <script>
@@ -202,8 +227,32 @@
         { key: "darwin-arm64", title: "Mac", detail: "Apple 芯片" },
         { key: "darwin-x64", title: "Mac", detail: "Intel 芯片" },
       ];
+      const groups = [
+        {
+          id: "desktop",
+          title: "桌面版",
+          summary: "带窗口的 Goose 应用。",
+          files: (manifest) => manifest.files,
+          name: {
+            "win32-x64": "Goose-desktop-windows-x64.zip",
+            "darwin-arm64": "Goose-desktop-mac-arm64.zip",
+            "darwin-x64": "Goose-desktop-mac-x64.zip",
+          },
+        },
+        {
+          id: "cli",
+          title: "命令行",
+          summary: "在终端里运行的 goose 命令。",
+          files: (manifest) => manifest.cli,
+          name: {
+            "win32-x64": "goose-cli-windows-x64.zip",
+            "darwin-arm64": "goose-cli-mac-arm64.tar.gz",
+            "darwin-x64": "goose-cli-mac-x64.tar.gz",
+          },
+        },
+      ];
 
-      const downloads = document.querySelector("#downloads");
+      const catalog = document.querySelector("#catalog");
       const versionNode = document.querySelector("#version");
 
       function formatSize(bytes) {
@@ -242,11 +291,11 @@
       }
 
       function showMessage(text) {
-        downloads.innerHTML = "";
+        catalog.innerHTML = "";
         const note = document.createElement("p");
         note.className = "status";
         note.textContent = text;
-        downloads.append(note);
+        catalog.append(note);
       }
 
       function render(manifest, recommended) {
@@ -255,47 +304,75 @@
         label.textContent = "当前版本 ";
         versionNode.append(label, document.createTextNode(manifest.version));
 
-        downloads.innerHTML = "";
-        for (const edition of editions) {
-          const url = manifest.files?.[edition.key];
-          if (!url) continue;
-          const card = document.createElement("article");
-          card.className = "card";
-          if (edition.key === recommended) card.classList.add("recommended");
+        catalog.innerHTML = "";
+        for (const group of groups) {
+          const urls = group.files(manifest);
+          if (!urls) continue;
+          const section = document.createElement("section");
+          section.className = "group";
+          const heading = document.createElement("h2");
+          heading.textContent = group.title;
+          const summary = document.createElement("p");
+          summary.className = "summary";
+          summary.textContent = group.summary;
+          const grid = document.createElement("div");
+          grid.className = "grid";
 
-          const title = document.createElement("h2");
-          title.textContent = edition.title;
-          const detail = document.createElement("p");
-          detail.className = "detail";
-          detail.textContent = edition.detail;
-          const badge = document.createElement("p");
-          badge.className = "badge";
-          badge.textContent = "适合这台电脑";
-          const meta = document.createElement("p");
-          meta.className = "meta";
-          if (edition.key.startsWith("darwin") && manifest.minimumMacOSVersion) {
-            meta.textContent = `需要 macOS ${manifest.minimumMacOSVersion} 或更高版本`;
+          for (const edition of editions) {
+            const url = urls[edition.key];
+            if (!url) continue;
+            const filename = group.name[edition.key];
+            const card = document.createElement("article");
+            card.className = "card";
+            if (edition.key === recommended) card.classList.add("recommended");
+
+            const title = document.createElement("h3");
+            title.textContent = edition.title;
+            const detail = document.createElement("p");
+            detail.className = "detail";
+            detail.textContent = edition.detail;
+            const file = document.createElement("p");
+            file.className = "file";
+            file.textContent = filename;
+            const badge = document.createElement("p");
+            badge.className = "badge";
+            badge.textContent = "适合这台电脑";
+            const meta = document.createElement("p");
+            meta.className = "meta";
+            if (group.id === "desktop" && edition.key.startsWith("darwin") && manifest.minimumMacOSVersion) {
+              meta.textContent = `需要 macOS ${manifest.minimumMacOSVersion} 或更高版本`;
+            }
+            const link = document.createElement("a");
+            link.className = "download";
+            link.href = url;
+            link.download = filename;
+            link.textContent = "下载";
+
+            card.append(title, detail, file, badge, meta, link);
+            grid.append(card);
+
+            fileSize(url).then((size) => {
+              if (!size) return;
+              const requirement = meta.textContent;
+              meta.textContent = requirement ? `${size} · ${requirement}` : size;
+            });
           }
-          const link = document.createElement("a");
-          link.className = "download";
-          link.href = url;
-          link.textContent = "下载";
 
-          card.append(title, detail, badge, meta, link);
-          downloads.append(card);
-
-          fileSize(url).then((size) => {
-            if (!size) return;
-            const requirement = meta.textContent;
-            meta.textContent = requirement ? `${size} · ${requirement}` : size;
-          });
+          if (!grid.children.length) continue;
+          section.append(heading, summary, grid);
+          catalog.append(section);
         }
 
-        if (!downloads.children.length) showMessage("这份版本清单里没有可下载的安装包。");
+        if (!catalog.children.length) showMessage("这份版本清单里没有可下载的安装包。");
       }
 
-      downloads.innerHTML = editions
-        .map(() => '<article class="card"><div class="skeleton"></div><div class="skeleton wide"></div></article>')
+      catalog.innerHTML = groups
+        .map(
+          (group) =>
+            `<section class="group"><h2>${group.title}</h2><div class="grid">${editions
+              .map(() => '<article class="card"><div class="skeleton"></div><div class="skeleton wide"></div></article>')
+              .join("")}</div></section>`
+        )
         .join("");
 
       Promise.all([
