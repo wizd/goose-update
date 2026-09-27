@@ -1,12 +1,11 @@
 services:
   caddy:
-    image: caddy:2-alpine
+    build: .
     restart: unless-stopped
     expose:
       - "80"
     volumes:
       - /data/goose-updates:/srv:ro
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
     read_only: true
     tmpfs:
       - /data
