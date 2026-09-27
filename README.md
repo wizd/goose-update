@@ -2,6 +2,8 @@
 
 只读静态站。Coolify 终止 HTTPS，容器里的 Caddy 只监听 80，没有上传入口。
 
+打开 `https://goose-update.vcorp.ai` 会看到下载页。页面在浏览器里读取 `/goose/latest.json`，所以新版本发布后不用重新做这个页面。安装包仍在 `/goose/<版本>/`。
+
 在 Coolify 里把这个仓库单独建成一个应用，Build Pack 选 Docker Compose，Base Directory 用仓库根目录。
 
 - 域名填 `https://goose-update.vcorp.ai`。容器监听 80，不要在 Compose 里写 `ports:`，否则会绕过 Coolify 的反向代理。

@@ -3,9 +3,19 @@
 }
 
 :80 {
-	root * /srv
 	encode gzip zstd
+
 	@manifest path /goose/latest.json
 	header @manifest Cache-Control "no-store"
-	file_server
+
+	handle /goose/* {
+		root * /srv
+		file_server
+	}
+
+	handle {
+		root * /opt/site
+		header Cache-Control "no-cache"
+		file_server
+	}
 }
